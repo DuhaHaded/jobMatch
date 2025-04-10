@@ -1,3 +1,8 @@
+process.on('uncaughtException', err => {
+    console.error('Uncaught Exception:', err);
+  });
+  
+
 import 'dotenv/config'
 import express from 'express'
 import initApp from './src/app.router.js';

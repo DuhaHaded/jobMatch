@@ -4,6 +4,9 @@ import cors from 'cors';
 import userRouter from './modules/user/user.router.js';
 
  const initApp=(app,express) => {
+    app.get('/', (req, res) => {
+        res.send('Welcome to JobMatch API is running ✅');
+      });
     app.use(cors());
     app.use('/user', userRouter); // يصير عندك /user/profile
 
