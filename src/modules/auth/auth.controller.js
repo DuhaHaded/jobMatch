@@ -1,14 +1,12 @@
 import UserModel from '../../../db/model/user.model.js';
-
-
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
-//signUp
+// 🟢 تسجيل مستخدم جديد
 export const signUp = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, type, companyName } = req.body;
+    const { fullName, email, password, type, companyName } = req.body;
 
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
@@ -17,8 +15,7 @@ export const signUp = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, parseInt(process.env.SALTROUND));
     const newUser = await UserModel.create({
-      firstName,
-      lastName,
+      fullName,
       email,
       password: hashedPassword,
       type,
@@ -29,7 +26,7 @@ export const signUp = async (req, res) => {
       message: 'User registered successfully',
       user: {
         id: newUser._id,
-        name: `${newUser.firstName} ${newUser.lastName}`,
+        name: newUser.fullName,
         email: newUser.email,
         type: newUser.type
       }
@@ -40,6 +37,7 @@ export const signUp = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 //getAll
 export const getAll = async (req, res) => {
   try {
@@ -107,58 +105,53 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-  //login
-    export const login = async (req, res) => {
-      try {
-        const { email, password } = req.body;
-    
-        const user = await UserModel.findOne({ email });
-        if (!user) {
-          return res.status(400).json({ message: 'User not found' });
-        }
-    
-        if (user.status !== 'Active') {
-          return res.status(400).json({ message: 'Account is not active' });
-        }
-    
-        const isMatch = await bcrypt.compare(password, user.password);
-        if(user.status == "NotActive"){
-          return res.status(400).json ({message :"your account is blocked ...."});
-        }
-        if (!isMatch) {
-          return res.status(400).json({ message: 'Incorrect password' });
-        }
-    
-        // ✅ إنشاء JWT Token
-        const token = jwt.sign(
-          {
-            id: user._id,
-            email: user.email,
-            role: user.role,
-            type: user.type,
-            status:user.status,
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: process.env.JWT_EXPIRE }
-        );
-    
-        res.status(200).json({
-          message: 'Login successful',
-          token,
-          user: {
-            id: user._id,
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            type: user.type,
-            ...(user.type === 'company' && { companyName: user.companyName })
-          }
-        });
-    
-      } catch (error) {
-        console.error('Login Error:', error);
-        res.status(500).json({ message: error.message });
+export const signIn = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    if (user.status !== 'Active') {
+      return res.status(400).json({ message: 'Account is not active' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect password' });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        type: user.type,
+        status: user.status
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE }
+    );
+
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.fullName,
+        email: user.email,
+        type: user.type,
+        ...(user.type === 'company' && { companyName: user.companyName })
       }
-    };
+    });
+
+  } catch (error) {
+    console.error('SignIn Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
   
   
