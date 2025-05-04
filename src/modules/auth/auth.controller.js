@@ -2,11 +2,20 @@ import UserModel from '../../../db/model/user.model.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { sendEmail } from '../../utils/email.utils.js';
+
 
 // 🟢 تسجيل مستخدم جديد
 export const signUp = async (req, res) => {
   try {
+    console.log("📥 Received data from frontend:", req.body);
+
     const { fullName, email, password, type, companyName } = req.body;
+
+    // ✅ تحقق من طول الباسورد
+    if (!password || password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
 
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
@@ -38,16 +47,18 @@ export const signUp = async (req, res) => {
   }
 };
 
-//getAll
+// 🟡 استرجاع جميع المستخدمين (للاختبار أو لوحة الإدارة)
 export const getAll = async (req, res) => {
   try {
-    const users = await UserModel.find({}, '-password'); // استبعاد كلمات المرور
+    const users = await UserModel.find({}, '-password'); // استبعاد كلمة المرور
     res.json({ users });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-//forgotPassword – طلب استعادة كلمة المرور حاليال الكود بنرسله هون 
+
+
+// 🔐 Forgot Password - Send reset code to email
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -58,14 +69,24 @@ export const forgotPassword = async (req, res) => {
     }
 
     const resetCode = crypto.randomBytes(3).toString('hex');
-    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 دقيقة
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     user.resetCode = resetCode;
     user.resetCodeExpires = expires;
     await user.save();
 
-    // مؤقتًا نطبع الكود
-    console.log( `Reset code for ${email}: ${resetCode}`);
+    const html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px; max-width: 500px; margin: auto;">
+        <h2 style="color: #333;">Reset Your Password</h2>
+        <p style="font-size: 16px;">You requested to reset your password. Please use the following code:</p>
+        <div style="font-size: 24px; font-weight: bold; margin: 20px 0; color: #007bff;">${resetCode}</div>
+        <p style="font-size: 14px; color: #666;">This code will expire in 15 minutes.</p>
+        <hr />
+        <p style="font-size: 12px; color: #999;">If you did not request this, you can safely ignore this email.</p>
+      </div>
+    `;
+
+    await sendEmail(user.email, 'Password Reset Code', html);
 
     res.json({ message: 'Reset code sent to your email' });
 
@@ -74,7 +95,8 @@ export const forgotPassword = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-//اعادة تعين كلمة المرور
+
+// 🔵 Reset Password
 export const resetPassword = async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
@@ -87,9 +109,9 @@ export const resetPassword = async (req, res) => {
     if (user.resetCodeExpires < new Date()) {
       return res.status(400).json({ message: 'Reset code expired' });
     }
-     //  تحقق من قوة الباسورد الجديدة
-     if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long' });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
@@ -105,6 +127,9 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+
+
+// 🟣 تسجيل دخول مستخدم
 export const signIn = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -152,6 +177,3 @@ export const signIn = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-  
-  

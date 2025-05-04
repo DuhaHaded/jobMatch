@@ -6,6 +6,8 @@ process.on('uncaughtException', err => {
 import 'dotenv/config'
 import express from 'express'
 import initApp from './src/app.router.js';
+import connectDB from './db/connectiondb.js';
+
 const app = express();
 const PORT= process.env.PORT ||3000;
 app.get('/', (req, res)=>{
