@@ -1,8 +1,9 @@
 import UserModel from '../../../db/model/user.model.js';
 import bcrypt from 'bcrypt';
-import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../../utils/email.utils.js';
+import crypto from 'crypto';  
+
 
 
 // 🟢 تسجيل مستخدم جديد
@@ -76,15 +77,16 @@ export const forgotPassword = async (req, res) => {
     await user.save();
 
     const html = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px; max-width: 500px; margin: auto;">
-        <h2 style="color: #333;">Reset Your Password</h2>
-        <p style="font-size: 16px;">You requested to reset your password. Please use the following code:</p>
-        <div style="font-size: 24px; font-weight: bold; margin: 20px 0; color: #007bff;">${resetCode}</div>
-        <p style="font-size: 14px; color: #666;">This code will expire in 15 minutes.</p>
-        <hr />
-        <p style="font-size: 12px; color: #999;">If you did not request this, you can safely ignore this email.</p>
-      </div>
-    `;
+    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px; max-width: 500px; margin: auto;">
+      <h2 style="color: #333;">Reset Your Password</h2>
+      <p style="font-size: 16px;">You requested to reset your password. Please use the following code:</p>
+      <div style="font-size: 24px; font-weight: bold; margin: 20px 0; color: #007bff;">${resetCode}</div>
+      <p style="font-size: 14px; color: #666;">This code will expire in 15 minutes.</p>
+      <hr />
+      <p style="font-size: 12px; color: #999;">If you did not request this, you can safely ignore this email.</p>
+    </div>
+  `;
+  
 
     await sendEmail(user.email, 'Password Reset Code', html);
 

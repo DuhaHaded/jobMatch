@@ -1,336 +1,162 @@
-import mongoose from 'mongoose';
+import express from 'express';
+
 import JobModel from '../../../db/model/job.model.js';
 import UserModel from '../../../db/model/user.model.js';
+import bcrypt from 'bcryptjs';
 
-// عرض كل الوظائف المنشورة
-export const getMyJobs = async (req, res) => {
+// ==========================================================
+// إضافة وظيفة جديدة
+// ==========================================================
+export const addJob = async (req, res) => {
   try {
-    const companyId = req.user.id;
-
-    const jobs = await JobModel.find({ company: companyId })
-      .populate('company', 'fullName email')
-      .sort({ createdAt: -1 });
-
-    res.json({ message: 'My posted jobs', jobs });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to get jobs', error: error.message });
-  }
-};
-
-// تعديل على الوظيفة
-export const updateJob = async (req, res) => {
-  try {
-    const companyId = req.user.id;
-    const { jobId } = req.params;
-    const updateData = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(jobId)) {
-      return res.status(400).json({ message: 'Invalid job ID format' });
-    }
-
-    const job = await JobModel.findOne({ _id: jobId, company: companyId });
-
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found or not authorized' });
-    }
-
-    const updatedJob = await JobModel.findByIdAndUpdate(jobId, updateData, {
-      new: true,
-      runValidators: true
-    });
-
-    res.json({ message: 'Job updated successfully', job: updatedJob });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to update job', error: error.message });
-  }
-};
-
-// حذف وظيفة
-export const deleteJob = async (req, res) => {
-  try {
-    const companyId = req.user.id;
-    const { jobId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(jobId)) {
-      return res.status(400).json({ message: 'Invalid job ID format' });
-    }
-
-    const job = await JobModel.findOne({ _id: jobId, company: companyId });
-
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found or not authorized' });
-    }
-
-    await JobModel.findByIdAndDelete(jobId);
-
-    res.json({ message: 'Job deleted successfully' });
-
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to delete job', error: error.message });
-  }
-};
-
-// جلب المرشحين
-export const getJobCandidates = async (req, res) => {
-  try {
-    const { jobId } = req.params;
-    const companyId = req.user._id;
-
-    if (!mongoose.Types.ObjectId.isValid(jobId)) {
-      return res.status(400).json({ message: 'Invalid job ID format' });
-    }
-
-    const job = await JobModel.findOne({ _id: jobId, company: companyId })
-      .populate('candidates.user');
-
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found or unauthorized' });
-    }
-
-    const candidates = job.candidates.map((app) => ({
-      id: app.user._id,
-      fullName: app.user.fullName,
-      matchPercentage: app.matchPercentage,
-    }));
-
-    res.status(200).json({ candidates });
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching candidates', error: err.message });
-  }
-};
-
-// تفاصيل المرشح
-export const getCandidateDetails = async (req, res) => {
-  try {
-    const { jobId, candidateId } = req.params;
-    const companyId = req.user._id;
-
-    if (!mongoose.Types.ObjectId.isValid(jobId) || !mongoose.Types.ObjectId.isValid(candidateId)) {
-      return res.status(400).json({ message: 'Invalid ID format' });
-    }
-
-    const job = await JobModel.findOne({ _id: jobId, company: companyId })
-      .populate('candidates.user');
-
-    if (!job) {
-      return res.status(404).json({ message: 'Job not found or unauthorized' });
-    }
-
-    const candidate = job.candidates.find(
-      (c) => c.user._id.toString() === candidateId
-    );
-
-    if (!candidate) {
-      return res.status(404).json({ message: 'Candidate not found for this job' });
-    }
-
-    const user = candidate.user;
-
-    res.status(200).json({
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      experience: user.experience,
-      skills: user.skills,
-      matchPercentage: candidate.matchPercentage,
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching candidate details', error: err.message });
-  }
-};
-
-//شغل ايه
-// Create a new job
-export const createJob = async (req, res) => {
-  try {
-    // Extract job data from request body
-    const { title, description, skills, location, deadline, numberOfPositions } = req.body;
-    
-    // Validate required fields
-    if (!title || !description) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Title and description are required" 
-      });
-    }
-
-    // Create job data object
-    const jobData = {
+    const { title, description, requirements, location, salary } = req.body;
+    const job = await JobModel.create({
       title,
       description,
-      skills: skills ? skills.split(',').map(skill => skill.trim()) : [],
+      requirements,
       location,
-      deadline: deadline ? new Date(deadline) : undefined,
-      numberOfPositions: numberOfPositions || 1,
-      company: req.user._id, // Set company to the authenticated user's ID
-    };
-
-    // Create new job
-    const newJob = new JobModel(jobData);
-    const savedJob = await newJob.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Job posted successfully",
-      job: savedJob,
+      salary,
+      companyId: req.user._id,
     });
-  } catch (error) {
-    console.error("Error creating job:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(201).json({ message: "Job posted successfully", job });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
-//profile
-// Update company profile
-export const updateCompanyProfile = async (req, res) => {
+
+// ==========================================================
+// عرض جميع وظائف الشركة
+// ==========================================================
+export const getAllCompanyJobs = async (req, res) => {
   try {
-    const { companyName, email, phone, location, bio } = req.body;
-    
-    // Find user by ID from the JWT token
-    const user = await UserModel.findById(req.user._id);
+    const jobs = await JobModel.find({ companyId: req.user._id });
+    res.status(200).json(jobs);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: "User not found" 
-      });
+// ==========================================================
+// عرض تفاصيل وظيفة واحدة (عند الضغط على Show من الواجهة)
+// ==========================================================
+export const getJobDetails = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const job = await JobModel.findOne({ _id: jobId, companyId: req.user._id }).select("title description location salary requirements createdAt");
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
     }
+    res.status(200).json(job);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
-    // Check if email is already in use by another user
-    if (email !== user.email) {
-      const existingUser = await UserModel.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ 
-          success: false,
-          message: "Email is already in use" 
-        });
-      }
+// ==========================================================
+// تحديث وظيفة
+// ==========================================================
+export const updateJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const updatedJob = await JobModel.findOneAndUpdate(
+      { _id: jobId, companyId: req.user._id },
+      req.body,
+      { new: true }
+    );
+    if (!updatedJob) {
+      return res.status(404).json({ message: "Job not found" });
     }
+    res.status(200).json({ message: "Job updated", job: updatedJob });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
-    // Update user fields
-    user.companyName = companyName || user.companyName;
-    user.email = email || user.email;
-    user.phone = phone || user.phone;
-    user.location = location || user.location;
-    user.bio = bio || user.bio;
+// ==========================================================
+// حذف وظيفة
+// ==========================================================
+export const deleteJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const deleted = await JobModel.findOneAndDelete({ _id: jobId, companyId: req.user._id });
+    if (!deleted) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+    res.status(200).json({ message: "Job deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
-    // Handle profile image if provided
+// ==========================================================
+// تحديث البروفايل (اسم الشركة، الايميل، الموقع، رقم الهاتف، نبذة)
+// ==========================================================
+export const updateProfile = async (req, res) => {
+  try {
+    const updateData = { ...req.body };
     if (req.file) {
-      // Create uploads directory if it doesn't exist
-      const uploadDir = "uploads/profile-images";
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-
-      // Delete old profile image if exists
-      if (user.profileImage && user.profileImage.startsWith("/uploads/")) {
-        const oldImagePath = path.join(process.cwd(), user.profileImage);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-
-      // Set new profile image path
-      user.profileImage = `/uploads/profile-images/${req.file.filename}`;
+      updateData.profileImage = req.file.path;
     }
-
-    // Save updated user
-    await user.save();
-
-    // Return updated user without password
-    const updatedUser = await UserModel.findById(user._id).select("-password");
-
-    res.status(200).json({
-      success: true,
-      message: "Profile updated successfully",
-      user: updatedUser,
-    });
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+    const updated = await UserModel.findByIdAndUpdate(req.user._id, updateData, { new: true });
+    res.status(200).json({ message: "Profile updated", user: updated });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-// Get company profile
-export const getCompanyProfile = async (req, res) => {
-  try {
-    const user = await UserModel.findById(req.user._id).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: "User not found" 
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      user,
-    });
-  } catch (error) {
-    console.error("Error fetching profile:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-};
-
-// Change password
+// ==========================================================
+// تغيير كلمة المرور للشركة
+// ==========================================================
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-
-    // Find user by ID
     const user = await UserModel.findById(req.user._id);
-
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: "User not found" 
-      });
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(400).json({ message: "Current password is incorrect" });
     }
-
-    // Check if current password is correct
-    const isMatch = await user.comparePassword(currentPassword);
-
-    if (!isMatch) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Current password is incorrect" 
-      });
-    }
-
-    // Update password
-    user.password = newPassword;
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
     await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Password changed successfully",
-    });
-  } catch (error) {
-    console.error("Error changing password:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(200).json({ message: "Password changed successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
+// ==========================================================
+// عرض المرشحين المتقدمين لوظيفة مع نسبة التطابق فقط
+// ==========================================================
+export const getCandidatesForJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const job = await JobModel.findOne({ _id: jobId, companyId: req.user._id }).populate('applicants', 'fullName matchPercentage');
+    if (!job) {
+      return res.status(404).json({ message: "Job not found or access denied" });
+    }
+    const candidates = job.applicants.map((app) => ({
+      _id: app._id,
+      fullName: app.fullName,
+      matchPercentage: app.matchPercentage || 0
+    }));
+    res.status(200).json(candidates);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
-
-
-
-
-  
+// ==========================================================
+// عرض تفاصيل مرشح عند الضغط على اسمه
+// ==========================================================
+export const getCandidateDetails = async (req, res) => {
+  try {
+    const { candidateId } = req.params;
+    const candidate = await UserModel.findById(candidateId).select('fullName email phone experience skills');
+    if (!candidate) {
+      return res.status(404).json({ message: "Candidate not found" });
+    }
+    res.status(200).json(candidate);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
