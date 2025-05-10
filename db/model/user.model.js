@@ -57,6 +57,16 @@ const userSchema = new Schema(
     resetCodeExpires: {
       type: Date,
     },
+
+    // 🆕 السيرة الذاتية - مسار ملف PDF
+    resume: {
+      type: String, // مثال: "uploads/resumes/1682432035.pdf"
+    },
+
+    // 🆕 نص السيرة الذاتية المستخرج (اختياري)
+    resumeText: {
+      type: String,
+    },
   },
   {
     timestamps: true,

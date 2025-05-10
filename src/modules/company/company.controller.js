@@ -7,22 +7,50 @@ import bcrypt from 'bcryptjs';
 // ==========================================================
 // إضافة وظيفة جديدة
 // ==========================================================
+// Create a new job
 export const addJob = async (req, res) => {
   try {
-    const { title, description, requirements, location, salary } = req.body;
-    const job = await JobModel.create({
+    // Extract job data from request body
+    const { title, description, skills, location, deadline, numberOfPositions } = req.body;
+    
+    // Validate required fields
+    if (!title || !description) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Title and description are required" 
+      });
+    }
+
+    // Create job data object
+    const jobData = {
       title,
       description,
-      requirements,
+      skills: skills ? skills.split(',').map(skill => skill.trim()) : [],
       location,
-      salary,
-      companyId: req.user._id,
+      deadline: deadline ? new Date(deadline) : undefined,
+      numberOfPositions: numberOfPositions || 1,
+      company: req.user._id, // Set company to the authenticated user's ID
+    };
+
+    // Create new job
+    const newJob = new JobModel(jobData);
+    const savedJob = await newJob.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Job posted successfully",
+      job: savedJob,
     });
-    res.status(201).json({ message: "Job posted successfully", job });
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+  } catch (error) {
+    console.error("Error creating job:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 };
+
 
 // ==========================================================
 // عرض جميع وظائف الشركة

@@ -1,7 +1,7 @@
 import authRouter from './modules/auth/auth.router.js';
 import connectDB from '../db/connectiondb.js';
 import cors from 'cors';
-import userRouter from './modules/user/user.router.js';
+import userRouter from './user/user.router.js';
 import companyRouter from './modules/company/company.router.js';
 import path from 'path';
 import { fileURLToPath } from 'url';

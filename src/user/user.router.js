@@ -1,6 +1,5 @@
-
 import { Router } from 'express';
-import { auth } from '../../middleware/auth.middleware.js';
+import { auth } from '../middleware/auth.middleware.js';
  //  استدعاء الميدل وير
 
 const router = Router();
